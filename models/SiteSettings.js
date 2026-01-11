@@ -45,6 +45,46 @@ const siteSettingsSchema = new mongoose.Schema({
     default: 'To be South Africa\'s leading timber supplier, known for quality, reliability, and innovation.'
   },
   
+  // Why Choose Us Section
+  whyChooseTitle: {
+    type: String,
+    default: 'Why Choose 3D\'S SAWMILL?'
+  },
+  whyChooseSubtitle: {
+    type: String,
+    default: 'Our Advantages'
+  },
+  whyChooseDescription: {
+    type: String,
+    default: 'We combine traditional craftsmanship with cutting-edge technology to deliver premium timber solutions you can trust.'
+  },
+  
+  // Features
+  feature1Title: {
+    type: String,
+    default: 'Sustainable Sourcing'
+  },
+  feature1Description: {
+    type: String,
+    default: 'All our timber comes from certified sustainable forests in South Africa, ensuring environmental responsibility and long-term supply.'
+  },
+  feature2Title: {
+    type: String,
+    default: 'Precision Milling'
+  },
+  feature2Description: {
+    type: String,
+    default: 'State-of-the-art equipment ensures exact dimensions and superior quality for every timber product, cut to your specifications.'
+  },
+  feature3Title: {
+    type: String,
+    default: 'Nationwide Delivery'
+  },
+  feature3Description: {
+    type: String,
+    default: 'Reliable logistics network delivering to your construction site, anywhere in South Africa, with tracking and insurance.'
+  },
+  
   // Contact Information
   contactPhone: {
     type: String,
