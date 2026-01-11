@@ -1,6 +1,6 @@
 import express from 'express';
 import SiteSettings from '../models/SiteSettings.js';
-import { protect, admin } from '../middleware/auth.js';
+import { authenticate, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -20,7 +20,7 @@ router.get('/', async (req, res) => {
 // @route   PUT /api/site-settings
 // @desc    Update site settings
 // @access  Private/Admin
-router.put('/', protect, admin, async (req, res) => {
+router.put('/', authenticate, authorize(['admin']), async (req, res) => {
   try {
     const settings = await SiteSettings.getSiteSettings();
     
@@ -46,7 +46,7 @@ router.put('/', protect, admin, async (req, res) => {
 // @route   POST /api/site-settings/reset
 // @desc    Reset site settings to defaults
 // @access  Private/Admin
-router.post('/reset', protect, admin, async (req, res) => {
+router.post('/reset', authenticate, authorize(['admin']), async (req, res) => {
   try {
     await SiteSettings.deleteMany({});
     const settings = await SiteSettings.getSiteSettings();
