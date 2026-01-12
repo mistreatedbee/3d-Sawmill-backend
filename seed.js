@@ -4,6 +4,7 @@ import { Product } from './models/Product.js';
 import { Testimonial } from './models/Testimonial.js';
 import { Gallery } from './models/Gallery.js';
 import { User } from './models/User.js';
+import SiteSettings from './models/SiteSettings.js';
 
 dotenv.config();
 
@@ -17,6 +18,7 @@ const seedDatabase = async () => {
     await Testimonial.deleteMany({});
     await Gallery.deleteMany({});
     await User.deleteMany({});
+    await SiteSettings.deleteMany({});
 
     // Seed products
     const products = await Product.insertMany([
@@ -308,6 +310,11 @@ const seedDatabase = async () => {
     const users = [adminUser, customerUser];
 
     console.log(`${users.length} users seeded`);
+    
+    // Seed site settings with defaults
+    const siteSettings = await SiteSettings.getSiteSettings();
+    console.log('Site settings initialized with default values');
+    
     console.log('\n=== LOGIN CREDENTIALS ===');
     console.log('Admin Account:');
     console.log('  Email: admin@3dsawmill.com');
@@ -318,6 +325,7 @@ const seedDatabase = async () => {
     console.log('========================\n');
 
     console.log('Database seeded successfully!');
+    console.log('✅ All default content is now loaded and ready to edit in Site Settings');
     process.exit(0);
   } catch (error) {
     console.error('Error seeding database:', error);
