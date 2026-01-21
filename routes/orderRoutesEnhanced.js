@@ -25,6 +25,8 @@ router.patch('/:id/cancel', authenticate, cancelOrder);
 
 // Admin routes
 router.get('/', authenticate, authorize('admin'), getAllOrders);
+// Compatibility for older admin tools
+router.get('/admin/all', authenticate, authorize('admin'), getAllOrders);
 router.get('/stats/overview', authenticate, authorize('admin'), getOrderStats);
 router.patch('/:id/status', authenticate, authorize('admin'), updateOrderStatus);
 router.patch('/:id/payment-status', authenticate, authorize('admin'), updatePaymentStatus);
