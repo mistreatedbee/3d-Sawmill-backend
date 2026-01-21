@@ -1,6 +1,7 @@
 import express from 'express';
 import {
   getAllProducts,
+  getAllProductsAdmin,
   getProductById,
   createProduct,
   updateProduct,
@@ -9,6 +10,9 @@ import {
 import { authenticate, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
+
+// Admin (full inventory, including disabled products)
+router.get('/admin/all', authenticate, authorize(['admin']), getAllProductsAdmin);
 
 router.get('/', getAllProducts);
 router.get('/:id', getProductById);

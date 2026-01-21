@@ -13,37 +13,68 @@ const generateOrderNumber = async () => {
 export const createOrder = async (req, res) => {
   try {
     const {
-      userId,
       items,
-      subtotal,
-      discount,
-      discountCode,
-      tax,
-      shippingCost,
-      total,
       deliveryMethod,
       estimatedDelivery,
       shippingAddress,
       customerName,
       customerEmail,
       customerPhone,
-      paymentMethod,
       notes,
+      requestType,
     } = req.body;
 
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Order must contain at least one item' });
+    }
+
+    const normalizedItems = items.map((item) => ({
+      productId: item.productId || item.id,
+      quantity: item.quantity,
+    }));
+
+    if (normalizedItems.some(i => !i.productId || !i.quantity || i.quantity < 1)) {
+      return res.status(400).json({ error: 'Invalid items payload' });
+    }
+
+    const isQuote = requestType === 'quote';
+
     // Validate items and reduce stock
-    for (const item of items) {
+    let computedSubtotal = 0;
+    const enrichedItems = [];
+
+    for (const item of normalizedItems) {
       const product = await Product.findById(item.productId);
       if (!product) {
         return res.status(404).json({ error: `Product ${item.productId} not found` });
       }
-      if (product.stock < item.quantity) {
+
+      // For invoice requests we enforce stock; for quote requests we allow requesting above current stock
+      if (!isQuote && product.stock < item.quantity) {
         return res.status(400).json({ error: `Insufficient stock for ${product.name}` });
       }
-      // Reduce stock
-      product.stock -= item.quantity;
-      await product.save();
+
+      const unitPrice = product.price || 0;
+      computedSubtotal += unitPrice * item.quantity;
+
+      enrichedItems.push({
+        productId: product._id,
+        quantity: item.quantity,
+        productName: product.name,
+        unitPrice,
+      });
+
+      // Reduce stock only for invoice requests
+      if (!isQuote) {
+        product.stock -= item.quantity;
+        await product.save();
+      }
     }
+
+    const computedTax = 0;
+    const computedShippingCost = deliveryMethod === 'delivery' ? 0 : 0;
+    const computedDiscount = 0;
+    const computedTotal = computedSubtotal + computedTax + computedShippingCost - computedDiscount;
 
     // Generate order number
     const orderNumber = await generateOrderNumber();
@@ -51,28 +82,28 @@ export const createOrder = async (req, res) => {
     // Create order with initial status history
     const order = new Order({
       orderNumber,
-      userId,
-      items,
-      subtotal,
-      discount,
-      discountCode,
-      tax,
-      shippingCost,
-      total,
+      userId: req.user.id,
+      items: enrichedItems,
+      subtotal: computedSubtotal,
+      discount: computedDiscount,
+      tax: computedTax,
+      shippingCost: computedShippingCost,
+      total: computedTotal,
       deliveryMethod,
       estimatedDelivery,
       shippingAddress,
       customerName,
       customerEmail,
       customerPhone,
-      paymentMethod,
+      paymentMethod: 'bank_transfer',
       paymentStatus: 'pending',
       notes,
+      requestType: isQuote ? 'quote' : 'invoice',
       status: 'pending',
       statusHistory: [
         {
           status: 'pending',
-          notes: 'Order created',
+          notes: isQuote ? 'Quote requested' : 'Invoice requested',
         }
       ],
     });
@@ -218,6 +249,77 @@ export const updatePaymentStatus = async (req, res) => {
   }
 };
 
+export const updateOrderFinancials = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { items, shippingCost, tax, discount, adminNotes } = req.body;
+
+    const order = await Order.findById(id).populate('items.productId');
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    if (items && !Array.isArray(items)) {
+      return res.status(400).json({ error: 'items must be an array' });
+    }
+
+    // Update line items (quantity + unitPrice) by productId match
+    if (Array.isArray(items)) {
+      const incomingByProductId = new Map(
+        items
+          .filter((i) => i && (i.productId || i.id))
+          .map((i) => [String(i.productId || i.id), i])
+      );
+
+      order.items.forEach((line) => {
+        const key = String(line.productId?._id || line.productId);
+        const incoming = incomingByProductId.get(key);
+        if (!incoming) return;
+
+        const nextQty = Number(incoming.quantity);
+        const nextPrice = Number(incoming.unitPrice);
+
+        if (!Number.isFinite(nextQty) || nextQty < 1) return;
+        if (!Number.isFinite(nextPrice) || nextPrice < 0) return;
+
+        line.quantity = nextQty;
+        line.unitPrice = nextPrice;
+        // Keep snapshot name up to date if possible
+        if (!line.productName) {
+          line.productName = line.productId?.name || line.productName || '';
+        }
+      });
+    }
+
+    if (shippingCost !== undefined) {
+      const v = Number(shippingCost);
+      if (Number.isFinite(v) && v >= 0) order.shippingCost = v;
+    }
+    if (tax !== undefined) {
+      const v = Number(tax);
+      if (Number.isFinite(v) && v >= 0) order.tax = v;
+    }
+    if (discount !== undefined) {
+      const v = Number(discount);
+      if (Number.isFinite(v) && v >= 0) order.discount = v;
+    }
+    if (typeof adminNotes === 'string') {
+      order.adminNotes = adminNotes;
+    }
+
+    // Recalculate totals
+    const subtotal = order.items.reduce((sum, line) => sum + (Number(line.unitPrice) || 0) * (Number(line.quantity) || 0), 0);
+    order.subtotal = subtotal;
+    order.total = subtotal + (order.tax || 0) + (order.shippingCost || 0) - (order.discount || 0);
+
+    await order.save();
+    await order.populate('items.productId');
+    res.json(order);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 export const cancelOrder = async (req, res) => {
   try {
     const { id } = req.params;
@@ -302,14 +404,22 @@ export const getOrderStats = async (req, res) => {
     ]);
 
     const totalOrders = await Order.countDocuments();
+    const paymentPending = await Order.countDocuments({ paymentStatus: 'pending' });
     const totalRevenue = await Order.aggregate([
       { $group: { _id: null, total: { $sum: '$total' } } }
     ]);
+
+    const statusBreakdown = stats.reduce((acc, row) => {
+      acc[row._id] = row.count;
+      return acc;
+    }, {});
 
     res.json({
       totalOrders,
       totalRevenue: totalRevenue[0]?.total || 0,
       byStatus: stats,
+      statusBreakdown,
+      paymentPending,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

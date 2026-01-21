@@ -6,6 +6,9 @@ export const getAllProducts = async (req, res) => {
     
     // Build query
     let query = {};
+
+    // Public endpoint: only return products available for sale
+    query.isAvailable = true;
     
     if (category && category !== 'all') {
       query.category = category;
@@ -38,11 +41,58 @@ export const getAllProducts = async (req, res) => {
   }
 };
 
+export const getAllProductsAdmin = async (req, res) => {
+  try {
+    const { category, search, sort, featured, isAvailable } = req.query;
+
+    // Build query (admin can see everything by default)
+    let query = {};
+
+    if (typeof isAvailable === 'string' && (isAvailable === 'true' || isAvailable === 'false')) {
+      query.isAvailable = isAvailable === 'true';
+    }
+
+    if (category && category !== 'all') {
+      query.category = category;
+    }
+
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    if (featured === 'true') {
+      query.featured = true;
+    }
+
+    let sortQuery = {};
+    if (sort === 'price-asc') {
+      sortQuery.price = 1;
+    } else if (sort === 'price-desc') {
+      sortQuery.price = -1;
+    } else {
+      sortQuery.name = 1;
+    }
+
+    const products = await Product.find(query).sort(sortQuery);
+    res.json(products);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 export const getProductById = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     
     if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    // Public access: do not expose disabled products
+    if (product.isAvailable === false) {
       return res.status(404).json({ error: 'Product not found' });
     }
 

@@ -6,6 +6,16 @@ const cartItemSchema = new mongoose.Schema({
     ref: 'Product',
     required: true,
   },
+  // Snapshot fields for quotes/invoices and historical accuracy
+  productName: {
+    type: String,
+    default: '',
+  },
+  unitPrice: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
   quantity: {
     type: Number,
     required: true,
@@ -16,7 +26,20 @@ const cartItemSchema = new mongoose.Schema({
 const orderStatusHistorySchema = new mongoose.Schema({
   status: {
     type: String,
-    enum: ['pending', 'confirmed', 'processing', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled', 'refunded'],
+    enum: [
+      'pending',
+      'quoted',
+      'invoiced',
+      'completed',
+      'confirmed',
+      'processing',
+      'packed',
+      'shipped',
+      'out_for_delivery',
+      'delivered',
+      'cancelled',
+      'refunded',
+    ],
     required: true,
   },
   timestamp: {
@@ -63,8 +86,26 @@ const orderSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'confirmed', 'processing', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled', 'refunded'],
+      enum: [
+        'pending',
+        'quoted',
+        'invoiced',
+        'completed',
+        'confirmed',
+        'processing',
+        'packed',
+        'shipped',
+        'out_for_delivery',
+        'delivered',
+        'cancelled',
+        'refunded',
+      ],
       default: 'pending',
+    },
+    requestType: {
+      type: String,
+      enum: ['quote', 'invoice'],
+      default: 'invoice',
     },
     statusHistory: [orderStatusHistorySchema],
     deliveryMethod: {
@@ -81,6 +122,10 @@ const orderSchema = new mongoose.Schema(
       province: String,
       postalCode: String,
       country: String,
+      // Backwards-compatible fields used by some frontend screens
+      state: String,
+      zip: String,
+      zipCode: String,
     },
     customerName: {
       type: String,

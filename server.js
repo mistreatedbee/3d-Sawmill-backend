@@ -6,7 +6,7 @@ import { connectDB } from './config/database.js';
 // Import routes
 import authRoutes from './routes/authRoutes.js';
 import productRoutes from './routes/productRoutes.js';
-import orderRoutes from './routes/orderRoutes.js';
+import orderRoutes from './routes/orderRoutesEnhanced.js';
 import galleryRoutes from './routes/galleryRoutes.js';
 import testimonialRoutes from './routes/testimonialRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';

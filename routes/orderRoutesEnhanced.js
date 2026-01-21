@@ -6,6 +6,7 @@ import {
   getUserOrders,
   updateOrderStatus,
   updatePaymentStatus,
+  updateOrderFinancials,
   cancelOrder,
   getAllOrders,
   getOrderStats,
@@ -27,6 +28,7 @@ router.get('/', authenticate, authorize('admin'), getAllOrders);
 router.get('/stats/overview', authenticate, authorize('admin'), getOrderStats);
 router.patch('/:id/status', authenticate, authorize('admin'), updateOrderStatus);
 router.patch('/:id/payment-status', authenticate, authorize('admin'), updatePaymentStatus);
+router.patch('/:id/financials', authenticate, authorize('admin'), updateOrderFinancials);
 router.patch('/:id/refund', authenticate, authorize('admin'), refundOrder);
 
 export default router;
