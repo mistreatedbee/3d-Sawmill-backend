@@ -1,6 +1,7 @@
 import express from 'express';
 import {
   createReview,
+  getReviewsAdmin,
   getProductReviews,
   getUserReviews,
   updateReview,
@@ -16,6 +17,9 @@ const router = express.Router();
 
 // Public routes
 router.get('/product/:productId', getProductReviews);
+
+// Admin list route (compat for older admin UI)
+router.get('/', authenticate, authorize('admin'), getReviewsAdmin);
 
 // Customer routes
 router.post('/', authenticate, createReview);

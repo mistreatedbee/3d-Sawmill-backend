@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Review } from '../models/Review.js';
 import { Product } from '../models/Product.js';
 import { Order } from '../models/Order.js';
@@ -203,6 +204,41 @@ export const getPendingReviews = async (req, res) => {
       .skip(skip);
 
     const total = await Review.countDocuments({ status: 'pending' });
+
+    res.json({
+      reviews,
+      pagination: {
+        total,
+        page: parseInt(page),
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Compatibility: admin review moderation list (used by AdminReviewModeration.tsx)
+// GET /api/reviews?status=pending|approved|rejected
+export const getReviewsAdmin = async (req, res) => {
+  try {
+    const { status = 'pending', limit = 20, page = 1 } = req.query;
+    const allowed = ['pending', 'approved', 'rejected'];
+    if (status && !allowed.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    const skip = (page - 1) * limit;
+    const query = status ? { status } : {};
+
+    const reviews = await Review.find(query)
+      .populate('userId', 'name email')
+      .populate('productId', 'name')
+      .sort('-createdAt')
+      .limit(parseInt(limit))
+      .skip(skip);
+
+    const total = await Review.countDocuments(query);
 
     res.json({
       reviews,
